@@ -11,22 +11,29 @@ If action is missing it is equivalent to {print}.
 % awk [ -F fs ] [ -v var=value ... ] -f programfile [ -- ] [ var=value ... ] [ file(s) ]
 
 # -f option to run programs in files or include libraries
+# -v initialize awk variables the take effect before the program is started
 # if no filename is specified awk reads the stdin
 # -- indicates there are no further command line options for awk. Any following options are available to your program
 # -F is the default field separator
 # filename '-' represents standard input
 
 % awk -F '\t' '{ ... }' files FS="[\f\v]" files  // -F is applied to first group of files and value assigned to FS is applied to second group of files
-% wk '{...}' Pass=1 *.tex Pass=2 *.tex  // processes list of files twice, once with Pass set to 1 and second time with Pass set to 2
+% awk '{...}' Pass=1 *.tex Pass=2 *.tex  // processes list of files twice, once with Pass set to 1 and second time with Pass set to 2
 
 * -F:    - splits line on ':' . Expects a character, string or regex to split the line into fields $1,$2,...
+* ARGC   - CLI argument count
+* ARGV   - CLI argument values. ARGV[0] is 'awk'. Arguments associated with -f and -v options are not available
+* ENVIRON - Read-only array gives access to environment variables.
 * NR     - current line number
 * NF     - number of fields on the current line
 * FNR    - file line number. current line number for each file separately
-* FS     - field separator. awk -F ":" is same as awk 'BEGIN { FS=":" }'
-* $0     - entire line without the trailing '\n' character
+* FS     - field separator. Default is single space meaning one or more whitespace characters. Leading and trailing whitespace is ignored
+           set FS="[ ]" to match exactly one space. Leading and trailing whitespace is not ignored. When FS is an empty string each character
+	   is a separate field. awk -F ":" is same as awk 'BEGIN { FS=":" }'
+* $0     - entire line without the trailing '\n' character as read from the input stream
 * $1     - first field
-* RS     - Input Record Separator. Newline by default
+* $NF    - last field
+* RS     - Input Record Separator. Newline by default. gawk allows regex as RS. Here RT can be used to determine the text that matches the separator
 * ORS    - Output Record Separator. Newline by default
 * OFS    - Output Field Separator. Whitespace by default
 * print  - with no argument is equal to print $0. Each print statement is followed by ORS. Accepts list of arguments separated by commas.
@@ -34,16 +41,26 @@ If action is missing it is equivalent to {print}.
 * BEGIN  - Special pattern not tested against input. It is executed before any input is read
 * END    - Special pattern not tested against input. It is executed after all input is read
 * next   - Skip execution of statements after 'next'  for the current input line. Start execution with the first statement for the next input line
-* getline t - reads the next line from input and stores it in variable t. getline by itself sets the next line in $0
+* nextfile - Skip execution for current input file. Supported by gawk
+* getline t - reads the next line from input and stores it in variable t and update NF, NR, FNR. getline by itself sets the next line in $0
 * in     - tests if value is in the array. eg. $0 in a 
 * length - length([str]), returns the length of the string or length of $0 if no string is specified
 * int    - int(-3.14) returns integer part of argument -3  
-* 'pattern1, pattern2' - Range pattern. Matches all lines starting at pattern1 until line matches pattern2.
+* 'pattern1, pattern2' - Range pattern. Selects all records matching  pattern1 upto and including  pattern2. If both expressions match a record
+                         the selection consists of that single record.
 * split  - split(str, arr, regex). Create an array from string
 * delete array[index] - removes element from the array
 * delete array - removes all elements from the array
-* FILENAME - name of the current input file
-* exit   - quit awk
+* FILENAME - name of the current input file being processed
+* exit   - Skip further execution and quit awk
+
+# Print the current input record $0 to standard output
+% awk 1
+% awk NR > 0 { print }
+% awk 1      { print }
+% awk        { print }
+% awk        { print $0 }
+       
 
 # String concatenation
 s = "A" "BC" "D"
@@ -75,7 +92,62 @@ telephone["Alice"] = "555-0134"
 // It replaces comma by unprintable string stored in builtin variable SUBSEP whose default value is '\034'
 print maildrop[53, "Oak Lane", "T4Q 7XV"]                   // all same
 print maildrop["53" SUBSEP "Oak Lane" SUBSEP "T4Q 7XV"]
-rint maildrop["53\034Oak Lane\034T4Q 7XV"]
+print maildrop["53\034Oak Lane\034T4Q 7XV"]
+
+# Test array membership
+if ("Sally" in telephone)
+         print "Sally is in the directory"
+
+if (telephone["Sally"] != "")                  // incorrect! adds an entry with an empty value
+         print "Sally is in the directory"
+
+# For loops
+for (k = n; k >= 1; k--)
+  statement
+
+for (name in telephone)
+      print name "\t" telephone[name]
+
+
+# Getline
+nwords = 1
+while ((getline words[nwords] < "/usr/dict/words") > 0)
+  nwords++
+
+
+"date" | getline now
+close("date")                 // close the command pipeline at the end
+print "The current time is", now
+
+command = "head -n 15 /etc/hosts"
+while ((command | getline s) > 0)
+  print s
+close(command)
+
+for (name in telephone)
+  print name "\t" telephone[name] | "sort"
+close("sort")
+
+tmpfile = "/tmp/telephone.tmp"
+command = "sort > " tmpfile
+for (name in telephone)
+  print name "\t" telephone[name] | command
+close(command)                                     // close pipeline command
+while ((getline < tmpfile) > 0)
+  print
+close(tmpfile)                                     // close file
+
+# system() function
+There is no need to call close() for commands run by system(), because close()is only for files or pipes opened with the I/O
+redirection operators and getline, print, or printf.
+tmpfile = "/tmp/telephone.tmp"
+for (name in telephone)
+  print name "\t" telephone[name] > tmpfile
+close(tmpfile)
+system("sort < " tmpfile)
+
+system("rm -f " tmpfile)
+system("cat <<EOFILE\nuno\ndos\ntres\nEOFILE")
 
 # FS - Input Field Separator. Splits the line into fields accessed via $1,$2,$3... variables. One or more spaces by default
 % awk -F: '{print $1}'                 // using command line option -F
@@ -84,6 +156,7 @@ rint maildrop["53\034Oak Lane\034T4Q 7XV"]
 
 # OFS - Output Field separator. Used to separate fields $1,$2,$3... when they get printed. Space by default.
 % awk -v OFS=: '{ print $1, $3 }'
+% echo 'one two three four' | awk '{ OFS = "\n"; print $0 }' // changing the OFS without asigning any field does not alter $0
 % awk -v OFS=- '{ $1=$1; print }'  // if you modify any of the fields the whole line gets recomputed in the $0 variable and fields get separated by OFS
 
 # NF - Number of Fields on the current line
@@ -346,5 +419,32 @@ split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec", month, " ")  // split(s
 # Create a reverse lookup array indexed by strings
 for (i=1; i<=12; i++) mdigit[month[i]] = i
 
+# Unix word count
+% awk '{ C += length($0) + 1; W += NF } END { print NR, W, C }'  // plus 1 for default ORS
 
+# Unix cat
+% awk 1
+
+# Unix grep
+% awk '/pattern|pattern/ { print FILENAME ":" FNR ":" $0 }'
+
+# Unix uniq
+% sort file(s) | awk 'Last != $0 { print } { Last = $0 }'
+
+# Sum of the nth column
+% awk -v COLUMN=n '{ sum += $COLUMN } END { print sum }'
+
+# Restrict search to just lines 100-150
+% awk '(100 <= FNR) && (FNR <= 150) && /pattern/ { print FILENAME ":" FNR ":" $0 }'
+
+# Swap the second and third column
+% awk -F'\t' -v OFS='\t' '{ print $1, $3, $2, $4 }'
+% awk 'BEGIN { FS = OFS = "\t" } { print $1, $3, $2, $4 }'
+% awk -F'\t' '{ print $1 "\t" $3 "\t" $2 "\t" $4 }'
+
+# Convert double space lines to single space
+% gawk 'BEGIN { RS="\n *\n" } { print }'
+
+# Lines that exceed 72 character length
+% awk 'length($0) > 72 { print FILENAME ":" FNR ":" $0 }'
 
