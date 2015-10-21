@@ -6,15 +6,19 @@ between the pattern space and the hold buffer. Once sed has executed all the com
 and adds a \n at the end.
 
 # Addresses allow you to restrict sed commands to certain lines, or ranges of lines.
+# Address '$' matches the last line of the file 
 
 # { ... } - Command grouping executes all the commands in { ... } on the line that matches the restriction
 
 # sed command line switches
-'-n' switch does not print the pattern space to the output at the end which is the default
+'-n' switch does not print the pattern space to the output after it is processed
+     The only way to make sed output anything with the -n switch being on is to use a command
+     that modifies the output stream directly (these commands are =, a, c, i, I, p, P, r and w)
 '-e' switch can be used to separate sed commands
 '-i' switch forces sed to do in place replacement
 
 # sed commands
+'s///' command does substitution
 'h' command copies the current pattern space to the hold buffer
 'g' command copies the hold buffer back to the pattern space
 'x' command exchanges teh hold buffer and the pattern space
@@ -30,6 +34,8 @@ and adds a \n at the end.
 'b' command branches execution to the specified named label 
 'N' command appends the next line to the current pattern space, separating the next line from the
     current contents of the pattern space by a \n
+'=' command operates directly on the output stream and prints the current line number
+
 
 # Don't print the pattern space to the output
 $ sed -n 's/foo/bar/'
@@ -131,3 +137,32 @@ label a. This process repeats until at one moment N command reads the final line
 $ sed 'p'
 Each line gets printed twice, the first time with the p command, which prints the pattern space,
 and then the second time implicitly by sed because the end of the script is reached.
+
+# Substitue with newline in plain Old sed
+$ sed 's/,/\
+/g'
+Break the sed command into two lines to include the literal newline in the command
+
+# Number each line of file
+$ sed = file.txt | sed 'N;s/\n/\t/'
+The first one-liner uses a new command =. This command operates directly on the output stream and prints the current line number.
+There is no way to capture the current line number to pattern space. That’s why the second one-liner is needed.
+The second one-liner uses the N command. The N command appends a newline and the next line to the current pattern space
+to join the line containing the line number with the actual line. Then the famous substitute s/// command gets executed
+
+# Number each line of a file and right align the number
+$ sed = file.txt | sed 'N; s/^/     /; s/ *\(.\{6,\}\)\n/\1: /'
+The first 's' command appends 5 whitespace chars to the beginning of the line. The second 's' command captures at least six symbols
+up to the newline and replaces the capture and the newline with the back-reference, followed by colon and a space.
+The second 's' command matches some whitespace chars followed by at least 6 other characters followed by a newline.
+
+# Number each non-empty line of a file
+$ sed '/./=' file.txt | sed '/./N; s/\n/ /'
+The regular expression /./ matches lines with at least one char in them. When the empty lines (containing just the newline)
+get sent to the pattern space, the newline character gets removed, so the empty lines do not get matched.
+
+# Count the number of lines in a file (wc -l)
+$ sed -n '$='
+The '-n' switch only outputs the pattern space if used with a command that modifies the output stream directly such as '='
+The restriction pattern $ means "the last line of the file", so it applies the = command only to the last line.
+
