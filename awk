@@ -2,9 +2,9 @@
 =============
 Awk
 =============
-Awk consists of pattern-action statements. In each statement the pattern or action can be missing.
-If pattern is missing the action is applied to every line of input.
-If action is missing it is equivalent to {print}.
+-Awk consists of pattern-action statements. In each statement the pattern or action can be missing.
+-If pattern is missing the action is applied to every line of input.
+-If action is missing it is equivalent to {print}.
 
 % awk 'pattern {action}; pattern {action}' file.txt
 % awk [ -F fs ] [ -v var=value ... ] 'program' [ -- ] [ var=value ... ] [ file(s) ]
@@ -27,9 +27,9 @@ If action is missing it is equivalent to {print}.
 * NR     - current line number
 * NF     - number of fields on the current line
 * FNR    - file line number. current line number for each file separately
-* FS     - field separator. Default is single space meaning one or more whitespace characters. Leading and trailing whitespace is ignored
-           set FS="[ ]" to match exactly one space. Leading and trailing whitespace is not ignored. When FS is an empty string each character
-	   is a separate field. awk -F ":" is same as awk 'BEGIN { FS=":" }'
+* FS     - field separator. Default is single space " " meaning one or more whitespace characters. Leading and trailing whitespace is ignored
+           and runs of whitespace is treated as a single space. set FS="[ ]" to match exactly one space. Leading and trailing whitespace
+	   is not ignored. When FS is an empty string each character is a separate field. awk -F ":" is same as awk 'BEGIN { FS=":" }'
 * $0     - entire line without the trailing '\n' character as read from the input stream
 * $1     - first field
 * $NF    - last field
@@ -61,7 +61,6 @@ If action is missing it is equivalent to {print}.
 % awk        { print }
 % awk        { print $0 }
        
-
 # String concatenation
 s = "A" "BC" "D"
 t = s s s
@@ -88,8 +87,8 @@ a = (u>w) ? x^3 : y^7
 telephone["Alice"] = "555-0134"
 
 # Multi index arrays
-// simulates multi-dim arrays by treating comma separated indices as a single string.
-// It replaces comma by unprintable string stored in builtin variable SUBSEP whose default value is '\034'
+-Simulates multi-dim arrays by treating comma separated indices as a single string.
+-It replaces comma by unprintable string stored in builtin variable SUBSEP whose default value is '\034'
 print maildrop[53, "Oak Lane", "T4Q 7XV"]                   // all same
 print maildrop["53" SUBSEP "Oak Lane" SUBSEP "T4Q 7XV"]
 print maildrop["53\034Oak Lane\034T4Q 7XV"]
@@ -108,14 +107,20 @@ for (k = n; k >= 1; k--)
 for (name in telephone)
       print name "\t" telephone[name]
 
-
 # Getline
+* getline - Read the next record from the current input file into $0, and update NF, NR, and FNR.
+* getline var - Read the next record from the current input file into var, and update NR and FNR.
+* getline < file - Read the next record from file into $0, and update NF.
+* getline var < file - ead the next record from file into var.
+* cmd | getline - Read the next record from the external command, cmd, into $0, and update NF.
+* cmd | getline var - Read the next record from the external command, cmd, into var.
+
 nwords = 1
 while ((getline words[nwords] < "/usr/dict/words") > 0)
   nwords++
 
-
-"date" | getline now
+# Command Pipleline
+"date" | getline now          // Input from a command pipeline
 close("date")                 // close the command pipeline at the end
 print "The current time is", now
 
@@ -124,26 +129,32 @@ while ((command | getline s) > 0)
   print s
 close(command)
 
+# Output Redirection
+print "Hello, world" > file   // send output to file
+print "Hello, world" >> file  // append to file
+close(file)                   // close file to free resources
+
 for (name in telephone)
-  print name "\t" telephone[name] | "sort"
+  print name "\t" telephone[name] | "sort"  // output to a command pipelien  
 close("sort")
 
 tmpfile = "/tmp/telephone.tmp"
 command = "sort > " tmpfile
 for (name in telephone)
   print name "\t" telephone[name] | command
-close(command)                                     // close pipeline command
+close(command)                                     // close pipeline command before reading the file
 while ((getline < tmpfile) > 0)
   print
 close(tmpfile)                                     // close file
 
-# system() function
+# system() function to run external programs
 There is no need to call close() for commands run by system(), because close()is only for files or pipes opened with the I/O
 redirection operators and getline, print, or printf.
+
 tmpfile = "/tmp/telephone.tmp"
 for (name in telephone)
   print name "\t" telephone[name] > tmpfile
-close(tmpfile)
+close(tmpfile)                                  // close tmpfile to flush buffers
 system("sort < " tmpfile)
 
 system("rm -f " tmpfile)
@@ -448,3 +459,46 @@ for (i=1; i<=12; i++) mdigit[month[i]] = i
 # Lines that exceed 72 character length
 % awk 'length($0) > 72 { print FILENAME ":" FNR ":" $0 }'
 
+# User functions
+-Only a function’s documentation, or its code, can make clear whether the caller should expect a returned value.
+-It is conventional to place all functions after the pattern/action code in aplhabetical order
+-The named funciton arguments are used as local variables within the function body,
+ and they hide any global variables of the same name.
+-Changes made to scalar arguments are not visible to the caller, but changes made to arrays are visible.
+ Scalars are passed by value, where as arrays are passed by reference.
+-All variables used in the function body that do not occur in the argument list are global.
+ awk permits a function to be called with fewer arguments than declared in the function definition;
+ the extra arguments then serve as local variables. It is conventional to list them in the function argument list,
+ prefixed by some extra whitespace. Failure to list local variables as extra function arguments leads to hard-to-find
+ bugs when they clash with variables used in calling code.
+
+# Functions
+* substr(string,start,len)  // character positions numbered from 1
+* substr(string, start)     // len defaults to length(string)
+* tolower(string)
+* toupper(string)
+* index(string, findstr)            // returns the position of first occurance of 'findstr' in string otherwise 0
+* match(string,regexp)              // returns index of match or 0. Sets global variable RSTART to index of start of the match
+* substr(string, RSTART, RLENGTH)   // and RLENGTH to length of the match. Used to return the matching substring
+* sub(regexp, replacement, target)  // If target is ommited it defaults to $0
+* gsub(regexp, replacement, target) // global substitution
+* split(string, array, regexp)      // stores elements in array and returns the number of elements stored
+* split(string, chars, "")          // breaks string into one-character elements
+* split("", array)                  // delete all elements in the array
+
+* split( ) is an essential function for iterating through multiply subscripted arrays in
+  awk. Here is an example:
+for (triple in maildrop)
+{
+  split(triple, parts, SUBSEP)
+  house_number = parts[1]
+  street = parts[2]
+  postal_code = parts[3]
+  ...
+}
+
+* sprintf(format,expression1,expression2,...)   // returns the formatted string.
+* int(x)              // Return the integer part of x, truncating toward zero.
+* sqrt(x)             // Return the square root of x.
+* rand()              // Return a uniformly distributed pseudorandom number, r, such that 0 ≤ r < 1.
+* srand(x)            // Set the pseudorandom-number generator seed to x
