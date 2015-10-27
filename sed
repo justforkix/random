@@ -18,7 +18,7 @@ and adds a \n at the end.
 '-i' switch forces sed to do in place replacement
 
 # sed commands
-'s///' command does substitution
+'s///' command does substitution. The & in substitution command means "the matched string"
 'h' command copies the current pattern space to the hold buffer
 'g' command copies the hold buffer back to the pattern space
 'x' command exchanges teh hold buffer and the pattern space
@@ -26,9 +26,8 @@ and adds a \n at the end.
 'd' command deletes the pattern space for the lines that match 
 'H' command ...
 'G' command appends a newline \n followed by the contents of the hold buffer to the pattern space
-'b'
 'D'
-'t'
+'t' command branches to a named label if the last substitute command modified the pattern space
 'q'
 'n' command prints out the current pattern space
 'b' command branches execution to the specified named label 
@@ -166,3 +165,67 @@ $ sed -n '$='
 The '-n' switch only outputs the pattern space if used with a command that modifies the output stream directly such as '='
 The restriction pattern $ means "the last line of the file", so it applies the = command only to the last line.
 
+# Convert DOS/Windows newlines (CRLF) to Unix newlines (LF)
+$ sed 's/.$//'
+Once the line gets read into the pattern space, the newline gets thrown away, so we are left with lines ending in CR.
+The s/.$// command erases the last character by matching the trailing character of the line (regex .$) and substituting
+it with nothing. Now when the pattern space gets output, a newline gets appended at the end and we are left with lines ending in LF.
+
+$sed 's/^M$//'
+Erases the carriage return (Ctrl-v + Ctrl-m) character.
+
+$sed 's/\x0D$//'
+Using version of sed that supports hex escape codes, CR is 0x0D.
+
+# Convert Unix newlines (LF) to DOS/Windows newlines (CRLF)
+$ sed "s/$/`echo -e \\\r`/"
+The echo -e \\\r command inserts a literal carriage return character in the sed expression.
+
+$ sed 's/$/\r/'
+GNU sed can take escape characters in the replace part of the s/// command.
+
+# Convert Unix newlines to DOS/Windows newlines from DOS/Windows
+$ sed 's/$//"
+A smart sed interpreter on Windows recognizes that the file is ending just in LF char and drops it when putting line
+in the pattern space. The one-liner s/$// is basically a no-op one-liner. It replaces nothing with nothing and then 
+sends out the line to output stream where it gets CRLF appended on Windows
+
+Also no-op one-liners
+$ sed -n p
+$ sed ''
+$ sed ':'  // Here the : char is an unnamed label
+
+# Delete leading whitespace (tabs and spaces) from each line
+$ sed 's/^[ \t]*//'
+$ sed 's/^[[:blank:]]*//'
+
+# Delete trailing whitespace (tabs and spaces) from each line
+$ sed 's/[ \t]*$//'
+$ sed 's/[[:blank:]]*$//'
+
+# Delete both leading and trailing whitespace from each line (trim)
+$ sed 's/^[ \t]*//; s/[ \t]*$//'
+$ sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
+
+# Insert five blank spaces at the beginning of each line
+$ sed 's/^/     /'  
+
+# Align lines right on a 79-column width
+$ sed -e :a -e 's/^.\{1,78\}$/ &/' -e ta
+The substitute command left-pads the string (right aligns it) a single whitespace at a time, 
+until the total length of the string exceeds 78 chars. The & in substitution command means "the matched string"
+
+# Center all text in the middle of 79-column width
+$ sed  -e :a -e 's/^.\{1,77\}$/ & /' -e 'ta'  
+Pad on both sides of match until 77 chars. Two whitespaces added in last iteration
+
+$ sed  -e :a -e 's/^.\{1,77\}$/ &/; ta' -e 's/\( *\)\1/\1/'
+The additional s/\( *\)\1/\1/ command gets executed which divides the leading whitespace "in half".
+It matches \( *\)\1, which means "match as many spaces as possible \( *\), followed by the same number of spaces \1.
+
+# Substitute (find and replace) the 4th occurrence of "foo" with "bar" on each line
+$ sed 's/foo/bar/4'
+With no flags the first occurrence of pattern is changed.
+
+# Substitute (find and replace) all occurrence of "foo" with "bar" on each line
+$ sed 's/foo/bar/g'
