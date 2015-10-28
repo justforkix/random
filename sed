@@ -23,7 +23,8 @@ and adds a \n at the end.
 'g' command copies the hold buffer back to the pattern space
 'x' command exchanges teh hold buffer and the pattern space
 'p' command forces sed to print the line
-'d' command deletes the pattern space for the lines that match 
+'d' command deletes the pattern space for the lines that match, reads the next line in the pattern space,
+    aborts the current command and restarts execution of sed commands from the beginning 
 'H' command ...
 'G' command appends a newline \n followed by the contents of the hold buffer to the pattern space
 'D'
@@ -229,3 +230,34 @@ With no flags the first occurrence of pattern is changed.
 
 # Substitute (find and replace) all occurrence of "foo" with "bar" on each line
 $ sed 's/foo/bar/g'
+
+# Substitute (find and replace) the first occurrence of a repeated occurrence of "foo" with "bar"
+$ sed 's/\(.*\)foo\(.*foo\)/\1bar\2/'
+Uses two regex capturing groups
+
+# Substitute (find and replace) only the last occurrence of "foo" with "bar"
+$ sed 's/\(.*\)foo/\1bar/'
+Since .* is a greedy regular expression (matches as much as possible), it captures everything up to the last "foo".
+
+# Substitute all occurrences of "foo" with "bar" on all lines that contain "baz"
+$ sed '/baz/s/foo/bar/g'
+Uses a regular expression to restrict the substitution to lines matching "baz"
+
+# Substitute all occurrences of "foo" with "bar" on all lines that do not contain "baz"
+$ sed '/baz/!s/foo/bar/g'
+
+# Change text "scarlet", "ruby" or "puce" to "red"
+$ sed 's/scarlet/red/g;s/ruby/red/g;s/puce/red/g'
+$ sed 's/scarlet\|ruby\|puce/red/g'
+
+# Reverse order of lines (emulate "tac" Unix command)
+$ sed '1!G;h;$!d'
+The first command G gets applied to all the lines which are not the first line.
+The second command h gets applied to all lines.
+The third command d gets applied to all lines except the last one.
+
+$ sed -n '1!G;h;$p'
+This one-liner silences the output with the -n switch and forces the output with p command only at the last line.
+There is a correspondence between p and !d, when using -n switch.
+
+
