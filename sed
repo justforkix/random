@@ -260,4 +260,6 @@ $ sed -n '1!G;h;$p'
 This one-liner silences the output with the -n switch and forces the output with p command only at the last line.
 There is a correspondence between p and !d, when using -n switch.
 
+# !!! Reverse a line (emulates "rev" Unix command) 
+$ sed '/\n/!G;s/\(.\)\(.*\n\)/&\2\1/;//D;s/.//'
 
