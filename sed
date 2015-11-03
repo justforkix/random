@@ -1,3 +1,4 @@
+https://www.gnu.org/software/sed/manual/sed.html
 
 # Sed reads data from the input stream until it finds the newline character \n. Then it places the data read so far,
 without the newline, into the pattern space. Most of the sed commands operate on the data in the pattern space.
@@ -22,20 +23,24 @@ and adds a \n at the end.
 'h' command copies the current pattern space to the hold buffer
 'g' command copies the hold buffer back to the pattern space
 'x' command exchanges teh hold buffer and the pattern space
-'p' command forces sed to print the line
+'p' command forces sed to print the line if the substitution was made.
+    This command is usually only used in conjunction with the -n command-line option. 
 'd' command deletes the pattern space for the lines that match, reads the next line in the pattern space,
     aborts the current command and restarts execution of sed commands from the beginning 
 'H' command ...
 'G' command appends a newline \n followed by the contents of the hold buffer to the pattern space
-'D'
+'D' command deletes from the start of the input till and including the first newline and then resumes
+    editing with the first command in the script. It creates a loop. Same as 'd' without newline.
 't' command branches to a named label if the last substitute command modified the pattern space
-'q'
-'n' command prints out the current pattern space
+'q' command exits sed without processing any more commands or input. Note that the current pattern space is
+    printed if auto-print is not disabled with the -n options. 
+'n' command prints the pattern space if auto-print is not disabled, then, regardless, replace the pattern space
+    with the next line of input. If there is no more input then sed exits without processing any more commands. 
 'b' command branches execution to the specified named label 
 'N' command appends the next line to the current pattern space, separating the next line from the
     current contents of the pattern space by a \n
 '=' command operates directly on the output stream and prints the current line number
-
+'P' command prints out the portion of the pattern space up to the first newline
 
 # Don't print the pattern space to the output
 $ sed -n 's/foo/bar/'
@@ -260,6 +265,30 @@ $ sed -n '1!G;h;$p'
 This one-liner silences the output with the -n switch and forces the output with p command only at the last line.
 There is a correspondence between p and !d, when using -n switch.
 
-# !!! Reverse a line (emulates "rev" Unix command) 
+# Reverse a line (emulates "rev" Unix command) 
 $ sed '/\n/!G;s/\(.\)\(.*\n\)/&\2\1/;//D;s/.//'
+/\n/!G means if there is no newline in your input stream, then you append one at the end.
+
+s/\(.\)\(.*\n\)/&\2\1/ is a simple s/// expression which captures the first character as \1
+and all the others as \2. Then it replaces the whole matched string with &\2\1, where & is the whole matched text (it’s \1\2).
+
+//D in this one-liner an empty pattern // matches the last existing regex, so it’s exactly the same as /\(.\)\(.*\n\)/D
+When /\(.\)\(.*\n\)/ fails then sed goes to the next command.
+
+s/.// removes the first character in the pattern space which is the newline char.
+
+# Join pairs of lines side-by-side (emulates "paste" Unix command)
+$ sed '$!N;s/\n/ /'
+
+# Append a line to the next if it ends with a backslash
+$ sed -e :a -e '/\\$/N; s/\\\n//; ta'
+The first expression :a creates a named label a. The second expression joins the current line with the line following it
+using the N command if the current line ends with a backslash \. s/\\\n// command erases the slash and the newline between
+the joined lines. If the substitution was successful we branch to the beginning of expression with the ta command, and do
+the same again, hoping that we might have another backslash. If the substitution was not successful, the line did not end
+with a backslash, and we just print it out.
+
+# Append a line to the previous if it starts with an equal sign
+$ sed -e :a -e '$!N;s/\n=/ /;ta' -e 'P;D'
+
 
