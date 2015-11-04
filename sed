@@ -17,6 +17,7 @@ and adds a \n at the end.
      that modifies the output stream directly (these commands are =, a, c, i, I, p, P, r and w)
 '-e' switch can be used to separate sed commands
 '-i' switch forces sed to do in place replacement
+'-r; switch turns on the extended regular expression support
 
 # sed commands
 's///' command does substitution. The & in substitution command means "the matched string"
@@ -291,4 +292,43 @@ with a backslash, and we just print it out.
 # Append a line to the previous if it starts with an equal sign
 $ sed -e :a -e '$!N;s/\n=/ /;ta' -e 'P;D'
 
+# Digit group (commify) a numeric string
+$ sed -e :a -e 's/\(.*[0-9]\)\([0-9]\{3\}\)/\1,\2/;ta'
+$ sed ':a;s/\B[0-9]\{3\}\>/,&/;ta'  // gnu sed
+'\B' matches anywhere except at the word boundary (it means it doesn’t match at the beginning of a new word;
+it matches between first and second character in a word). The second pattern '\>' matches the null string
+at the end of the word. It’s necessary because we need to match the right-most three digits.
 
+# Add commas to numbers with decimal points and minus signs
+$ sed -r ':a; s/(^|[^0-9.])([0-9]+)([0-9]{3})/\1\2,\3/g; ta'  // gnu sed
+It turns on the extended regular expression support with the -r switch. The first group (^|[^[0-9.]) makes sure we
+ignore the leading non-digit characters, such as "+" or "-". If there are no leading non-digit characters, then it
+just anchors at the beginning of the string ^, which always matches.
+
+# Add a blank line after every five lines
+$ sed 'n;n;n;n;G'
+Each time 'n' is called it prints out the current pattern space, empties it and reads in the next line of input.
+The G command appends a newline to the fifth line, since this is the last command, the 5th line gets printed out
+with two newlines at the end.
+
+$ sed '0∼5G'  // gnu sed "step address" extension start∼|step
+It matches every step-th line starting with line start. Since we don't want to match the first line we start with 0.
+The 'G' command adds the newline to the matched text.
+
+# Uppercase all letters of every line
+$ sed 's/.*/\U&/'
+The \U extension in the substitution part of the s/// command that uppercases all the text after it.
+Here the .* matches the whole line, the & stands for the matched part (whole line) and \U& uppercases everything.
+
+
+# Uppercase the first letter of every line
+$ sed 's/.*/\u&/'
+The \u extension turns the next character to uppercase
+
+# Lowercase all letters of every line
+$ sed 's/.*/\L&/'
+The \L extension that lowercases the text after it
+
+# Lowercase the first letter of every line
+$ sed 's/.*/\l&/'
+The \l extension lowercases the first character after it
