@@ -247,3 +247,102 @@ if an expression doesn’t normally have a list value, the scalar value is autom
 print "I have ", @rocks, " rocks!\n";         # WRONG, prints names of rocks
 print "I have ", scalar @rocks, " rocks!\n";  # Correct, gives a number
 
+### Subroutines
+Whatever calculation is last performed in a sub-routine is automatically also the return value
+Perl automatically stores the argument list in a special array variable named @_ for the duration of the subroutine.
+This means that the first subroutine parameter is in $_[0], the second one is stored in $_[1], and so on but
+these variables have nothing whatsoever to do with the $_ variable. Perl doesn’t care about insufficient parameters
+and you get undef if you look beyond the end of the @_ array. It also ignores extra parameters.
+The @_ variable is private to the subroutine. Perl saves it before it invokes the next subroutine and restores its
+previous value upon return from that subroutine.
+
+### Local variables
+By default, all variables in Perl are global variables; that is, they are accessible from every part of the program.
+But you can create private variables called lexical variables at any time with the 'my' operator.
+These variables are private (or scoped) to the enclosing block (subroutine, if, while, or foreach)
+
+my $fred, $barney;          # WRONG! Fails to declare $barney
+my($fred, $barney);         # declares both
+
+foreach my $rock (qw/ bedrock slate lava /) {         # lexical variable in foreach
+ print "One rock is $rock.\n";
+}
+
+sub max {
+ my($m, $n);                       # new, private variables for this block
+ ($m, $n) = @_;                    # give names to the parameters
+ if ($m > $n) { $m } else { $n }   # You can omit the last semicolon in a block, in practice you omit it only when
+}                                  # the code is so simple that you can write the block in a single line.
+
+### Variable length argument list
+
+sub max {
+ if (@_ != 2) {           # if test uses array in scalar context. Better to make subroutines adapt to parameters than use this check      
+   print "WARNING!\n";
+ }
+}
+
+
+sub max {                         # Improved subroutine
+ my($max_so_far) = shift @_;      # the first one is the largest yet seen
+ foreach (@_) {                   # look at the remaining arguments
+  if ($_ > $max_so_far) {         # could this one be bigger yet?
+   $max_so_far = $_;
+  }
+ }
+ $max_so_far;
+}
+
+### Enable strict pragma
+use strict;                         # Enforce some good programming rules
+use 5.012;                          # loads strict for you
+Perl will insist that you declare every new variable, usually done with 'my'
+
+### Return operator
+
+sub which_element_is {
+ my($what, @array) = @_;
+ foreach (0..$#array) { 
+  if ($what eq $array[$_]) {
+   return $_;
+  }
+ }
+ –1;
+}
+
+### Subroutine call
+$maximum = &max(3, 5, 10, 4, 6);
+
+You can omit the '&' if Perl can see that it’s a subroutine call without the ampersand, from the syntax alone.
+or if Perl’s internal compiler has already seen the subroutine definition. However, if the subroutine has the
+same name as a Perl built-in, you must use the ampersand to call your version.
+
+my @cards = shuffle(@deck_of_cards);        # No & necessary on &shuffle since there is parameter list in paranthesis
+
+### Non scalar return values from subroutine
+sub list_from_fred_to_barney {
+ if ($fred < $barney) {
+     $fred..$barney;
+ } else {
+     reverse $barney..$fred;
+ }
+}
+
+@c = &list_from_fred_to_barney;
+
+### Persistent, private variables with 'state' declaration
+Declaring our variable with state tells Perl to retain the variable’s value between calls to the
+subroutine and to make the variable private to the subroutine. You can make any variable type a state variable;
+it’s not just for scalars.
+
+use 5.010;                                     # feature starting with Perl 5.10
+
+sub marine {
+ state $n = 0;
+ state @numbers;
+ print "Hello, sailor number $n!\n";
+}
+
+You can’t initialize arrays and hashes as state variables in list contexts as of Perl 5.10:
+state @array = qw(a b c);                          # Error!
+
