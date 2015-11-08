@@ -42,6 +42,8 @@ and adds a \n at the end.
     current contents of the pattern space by a \n
 '=' command operates directly on the output stream and prints the current line number
 'P' command prints out the portion of the pattern space up to the first newline
+'y' command transliterates any characters in the pattern space which match any of the
+    source-chars with the corresponding character in dest-chars.
 
 # Don't print the pattern space to the output
 $ sed -n 's/foo/bar/'
@@ -332,3 +334,36 @@ The \L extension that lowercases the text after it
 # Lowercase the first letter of every line
 $ sed 's/.*/\l&/'
 The \l extension lowercases the first character after it
+
+# Duplicate every word on every line
+$ sed 's/\([^ ]\+\)/\1 \1/g'
+The g flag at the end makes it do it globally, that is, for all words.
+
+$ sed 's/\(\w\+\)/\1 \1/g'   // gnu sed
+$ sed -r 's/(\w+)/\1 \1/g'   // avoid excessive backslashes by enabling extended regex
+
+# Remove all punctuation from every line
+$ sed 's/[!-/:-@[-`{-∼]//g'    // listing ranges of punctuation characters
+$ sed 's/[[:punct:]]//g'
+The [:punct:] is a class of all punctuation characters and the other pair of [ ] around the class
+makes sure that all the characters in the class are matched.
+
+# ROT13 encode every line
+$ sed 'y/abcdefghijklmnopqrstuvwxyz/nopqrstuvwxyzabcdefghijklm/y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/NOPQRSTUVWXYZABCDEFGHIJKLM/'
+
+# Print the first 10 lines of a file (emulates "head -10")
+$ sed 10q
+This command gets executed only when sed reads the 10th line. For all the other lines there
+is no command specified. When there is no command specified, the default action is to print the line as-is.
+The 'q' command actually prints the contents of pattern space and only then quits.
+
+# Print the first line of a file (emulates "head -1")
+sed q          // quits after printing the pattern space
+
+# Print the last 10 lines of a file (emulates "tail -10")
+sed -e :a -e '$q;N;11,$D;ba'
+It always keeps the last 10 lines in the pattern space and at the very last line of input it quits and prints them.
+The 11,$D command executes the D command if the current line number is greater than or equal to 11.
+The D command deletes the portion of pattern space up to the first new line character.
+
+
