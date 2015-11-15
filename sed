@@ -23,7 +23,7 @@ and adds a \n at the end.
 's///' command does substitution. The & in substitution command means "the matched string"
 'h' command copies the current pattern space to the hold buffer
 'g' command copies the hold buffer back to the pattern space
-'x' command exchanges teh hold buffer and the pattern space
+'x' command exchanges the hold buffer and the pattern space
 'p' command forces sed to print the line if the substitution was made.
     This command is usually only used in conjunction with the -n command-line option. 
 'd' command deletes the pattern space for the lines that match, reads the next line in the pattern space,
@@ -366,4 +366,57 @@ It always keeps the last 10 lines in the pattern space and at the very last line
 The 11,$D command executes the D command if the current line number is greater than or equal to 11.
 The D command deletes the portion of pattern space up to the first new line character.
 
+# Print the last 2 lines of a file (emulates "tail -2")
+$ sed '$!N;$!D'
+The $! address restricts com- mands N and D to all the lines except the last line.
+These two commands always keep only the most recently read line in pattern space.
+When processing the second-to-last line, N gets executed and appends the last line
+to the pattern space. The D does not get executed as N consumed the last line.
+At this moment sed quits and prints out the last two lines of the file.
+
+# Print the last line of a file (emulates "tail -1")
+$ sed '$!d'
+$ sed -n '$p'
+The -n parameter suppresses automatic printing of pattern space. It means that
+without an explicit p command (or other commands that act directly on the output stream),
+sed is dead silent. The p command stands for print and it prints the pattern space.
+
+# Print next-to-the-last line of a file
+$ sed -e '$!{h;d;}' -e x
+The h command copies the current line to the hold buffer and d deletes the current line,
+and starts execution at the first sed command. At the very last line h;d does not get executed.
+At this moment x gets a chance to execute. The x command exchanges the contents of the hold buffer
+with the pattern space and sed prints it.
+
+$ sed -e '1{$q;}' -e '$!{h;d;}' -e x
+The first part says – if it is the first line 1, then execute $q. The $q command means – if it is
+the last line, then quit. What it effectively does is it quits if the first line is the last line.
+
+$ sed -e '1{$d;}' -e '$!{h;d;}' -e x
+The first part says – if it is the first line 1, then execute $d. The $d command means – if it is
+the last line, then delete the pattern space and start all over again.
+
+# Print only the lines that match a regular expression (emulates "grep")
+$ sed -n '/regexp/p'
+$ sed '/regexp/!d'
+The ! before d command inverts the line matching. -n with p and !d do exactly the same thing.
+
+# Print only the lines that do not match a regular expression (emulates "grep -v")
+$ sed -n '/regexp/!p'
+$ sed '/regexp/d'
+
+# Print the line before regexp, but not the line containing the regexp
+$ sed -n '/regexp/{g;1!p;};h'
+If the current line doesn’t match /regexp/. Then only the h command gets executed that copies
+the current line to the hold buffer. Now suppose that the next line matches /regexp/, then the
+command group {g;1!p;} gets executed. First the hold buffer (containing the previous line) gets
+copied to the pattern space with the g command and the 1!p command executes. The 1! instructs p
+not to print on the first line (as there are no lines before the first). If the current line is
+not the first one, it prints the pattern space.
+
+# Print the line after regexp, but not the line containing the regexp
+$ sed -n '/regexp/{n;p;}'
+The behavior of the n command depends on the -n flag. If -n is specified, it will empty the current
+pattern space and read in the next line of input. If -n is not specified, it will print out the
+current pattern space before emptying it.
 
