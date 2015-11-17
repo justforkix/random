@@ -346,3 +346,77 @@ sub marine {
 You can’t initialize arrays and hashes as state variables in list contexts as of Perl 5.10:
 state @array = qw(a b c);                          # Error!
 
+### Hashes
+Hash elements spring into existence when you first assign to them and accessing outside the hash gives undef
+
+$family_name{'wilma'} = 'flintstone';
+$granite = $family_name{'larry'};                  # No larry here: undef
+
+Assigning to a hash is a list-context assignment
+%some_hash = ('foo', 35, 'bar', 12.4, 2.5, 'hello', 'wilma', 1.72e30, 'betty', "bye\n");
+
+The value of the hash (in a list context) is a simple list of key-value pairs
+@any_array = %some_hash;
+
+Making an inverse hash
+%ip_address = reverse %host_name;
+
+Another way of assigning to a hash
+my %last_name = ( 
+  'dino' => undef,
+  'barney' => 'rubble',
+  'betty' => 'rubble',
+);
+
+You may omit the quote marks on some hash keys when you use the fat comma, which
+automatically quotes the values to its left
+my %last_name = (
+  fred => 'flintstone',
+  dino => undef,
+  barney => 'rubble',
+  betty => 'rubble',
+);
+
+Another place you are permitted to use this shortcut is the most common place a hash key appears:
+in the curly braces of a hash element reference
+$score{fred}                   # same as $score{'fred'} for simple string keys
+
+### The keys and values functions
+
+my @k = keys %hash;
+my @v = values %hash;
+
+In a scalar context, these functions give the number of elements (key- value pairs) in the hash.
+my $count = keys %hash;
+
+### The each function
+
+The list assignment is happening in the conditional expression of the while loop, which is a scalar context.
+The value of a list assignment in a scalar context is the number of elements in the source list.
+
+while ( ($key, $value) = each %hash ) {
+  print "$key => $value\n";
+}
+
+foreach $key (sort keys %hash) {       # in sorted key order
+  $value = $hash{$key};
+  print "$key => $value\n";            # or print with hash element interpolation "$key => $hash{$key}\n";
+}
+
+### The exists function
+
+if (exists $books{"dino"}) {
+  print "Hey, there's a library card for dino!\n";
+}
+
+### The delete function
+
+delete $books{$person};
+
+### The %ENV environment hash
+
+print "PATH is $ENV{PATH}\n";
+
+
+
+
