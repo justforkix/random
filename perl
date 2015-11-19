@@ -346,6 +346,109 @@ sub marine {
 You can’t initialize arrays and hashes as state variables in list contexts as of Perl 5.10:
 state @array = qw(a b c);                          # Error!
 
+### Reading from standard input stream
+while (defined($line = <STDIN>)) {
+  chomp($line);
+  print "I saw $line";
+}
+
+while (defined($_ = <STDIN>)) {                 # shortcut
+  chomp;
+  print "I saw $_";
+}
+
+This shortcut works only if you write it just like that. If you put a line-input operator
+anywhere else (in particular, as a statement all on its own), it won’t read a line into $_
+by default. It works only if there’s nothing but the line-input operator in the conditional
+of a while/for loop. If you put anything else into the conditional expression, this shortcut
+won’t apply.
+
+foreach (<STDIN>) {
+  print "I saw $_";
+}
+
+Evaluating the line-input operator in a list context gives you all of the (remaining) lines
+of input as a list—each element of the list is one line.
+
+### Diamond operator
+
+$ ./my_program fred -  betty
+
+while (defined($line = <>)) {
+  chomp($line);
+  print "It was $line that I saw!\n";
+}
+
+while (<>) {                                   # shortcut
+  chomp;
+  print "It was $_ that I saw!\n";
+}
+
+If you give no invocation arguments, the program should process the standard input stream.
+Or, as a special case, if you give just a hyphen as one of the arguments, that means standard
+input as well.* So, if the invocation arguments had been fred - betty, that would have meant
+that the program should process file fred, followed by the standard input stream, followed by file betty.
+
+### Invocation arguments @ARGV
+The diamond operator looks in @ARGV to determine what filenames it should use. If it finds an empty list,
+it uses the standard input stream; otherwise it uses the list of files that it finds.
+
+### Output to standard output
+print @array;                               # print a list of items
+print "@array";                             # print a string (containing an interpolated array)
+
+That first print statement will print a list of items, one after another, with no spaces in between
+and the second prints the contents of @array, separated by spaces.
+
+Generally, if your strings contain newlines, you simply want to print them, after all:
+print @array;
+
+But if they don’t contain newlines, you generally want to add one at the end:
+print "@array\n";
+
+print is looking for a list of strings to print, it evaluates its arguments in list context.
+Since the diamond operator (as a special kind of line-input operator) returns a list of lines
+in a list context, these can work well together.
+
+print <>;                 # source code for 'cat'
+print sort <>;            # source code for 'sort'
+
+print has optional parentheses, which can some- times cause confusion. Remember the rule that
+parentheses in Perl may always be omitted—except when doing so would change the meaning of a statement.
+
+print (2+3)*4;          # Oops!
+
+It takes the return value from print, which is 1, and multiplies that times 4.
+
+### Formatted output
+
+printf "%g %g %g\n", 5/2, 51/17, 51 ** 17; # 2.5 3 1.0683e+29
+
+To print a number in what’s generally a good way, use %g,‡ which automatically
+chooses floating-point, integer, or even exponential notation, as needed
+
+printf "in %d days!\n", 17.85; # in 17 days!
+
+The %d format means a decimal integer, truncated as needed
+
+printf "%10s\n", "wilma";
+
+The %s conversion means a string
+
+printf "%12.3f\n", 6 * 7 + 2/3; # looks like ``````42.667
+
+The %f conversion for floating point
+
+printf "Monthly interest rate: %.2f%%\n", 5.25/12;
+
+To print a real percent sign, use %%
+
+### Arrays and printf
+printf "The items are:\n".("%10s\n" x @items), @items;
+
+Here you have @items being used once in a scalar context, to get its length,
+and once in a list context, to get its contents
+
 ### Hashes
 Hash elements spring into existence when you first assign to them and accessing outside the hash gives undef
 
